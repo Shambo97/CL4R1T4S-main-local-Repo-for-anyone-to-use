@@ -1,6 +1,6 @@
 import { App, TFile, moment, normalizePath } from "obsidian";
 import { DateOrganizationSettings } from "./settings";
-import { ensureFolderExists, isPathExcluded, resolveUniquePath } from "./utils";
+import { ensureFolderExists, isPathExcluded, isSpecialPluginNote, resolveUniquePath } from "./utils";
 
 export interface DateResolution {
 	date: moment.Moment;
@@ -75,6 +75,9 @@ export async function organizeNote(
 	}
 	if (isPathExcluded(file.path, settings.excludeFolders)) {
 		return { file, moved: false, fromPath: file.path, toPath: file.path, reason: "excluded folder" };
+	}
+	if (isSpecialPluginNote(app, file)) {
+		return { file, moved: false, fromPath: file.path, toPath: file.path, reason: "Kanban board or Excalidraw drawing" };
 	}
 
 	const { date } = resolveNoteDate(app, file, settings);

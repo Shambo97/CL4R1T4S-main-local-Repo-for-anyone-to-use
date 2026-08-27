@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: VaultBrainSettings = {
 	dateOrganization: {
 		enabled: true,
 		autoOrganizeOnCreate: false,
-		folderPattern: "Journal/YYYY/MM-MMMM",
+		folderPattern: "[Journal]/YYYY/MM-MMMM",
 		fileNamePattern: "YYYY-MM-DD",
 		renameFile: false,
 		dateSource: "created",

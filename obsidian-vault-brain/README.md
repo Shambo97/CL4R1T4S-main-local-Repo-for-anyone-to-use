@@ -18,6 +18,7 @@ All available from the command palette (`Ctrl/Cmd+P`):
 - **Update related notes for current note**
 - **Auto-link entire vault (add links + related notes)** (asks for confirmation first)
 - **Run vault housekeeping scan now**
+- **Repair garbled date folders (Journam\*/Journpm\*)** — see [Known issue fixed in 1.0.1](#known-issue-fixed-in-101) below
 
 ## Settings
 
@@ -73,3 +74,13 @@ npm run dev   # watches src/ and rebuilds main.js on change
 - Bulk commands ("Organize entire vault by date" and "Auto-link entire vault") show a confirmation dialog first, since they touch many files in one pass.
 - Back up your vault (or keep it under version control) before running bulk operations for the first time, and review the change on a small folder before running it vault-wide.
 - The housekeeping bot only *reads* your vault and writes a single report note — it never modifies or deletes existing notes.
+- Vault Brain leaves **Kanban boards** (`kanban-plugin` frontmatter) and **Excalidraw drawings** (`excalidraw-plugin` frontmatter) alone entirely — it won't move them or splice wikilinks/a Related Notes section into their body, since either would corrupt what those plugins render from the file.
+- If you're running other note-moving plugins (Auto Note Mover, Advanced Note Mover, etc.) alongside Vault Brain, don't point more than one of them at the same folder pattern — two movers racing to relocate the same note is a recipe for exactly the kind of corruption described below. Pick one plugin to own date-based filing and disable the date-organization side of the others.
+
+## Known issue fixed in 1.0.1
+
+Folder and file-name patterns are [moment.js format strings](https://momentjs.com/docs/#/displaying/format/), where **every letter is a token unless wrapped in `[brackets]`**. Versions before 1.0.1 shipped a default folder pattern of `Journal/YYYY/MM-MMMM` — but in moment.js, the `a` in "Journal" means "am/pm" and the `l` means "localized date," so the literal word "Journal" was silently reinterpreted every time a note was filed. The result: instead of one `Journal` folder, you'd get a different garbled folder per note — `Journam4`, `Journpm11`, `Journam24`, and so on, one for roughly every distinct day/time-of-day combination notes were created at.
+
+**1.0.1 fixes this two ways:**
+- The default pattern is now correctly escaped (`[Journal]/YYYY/MM-MMMM`), and the settings tab shows a **live preview** under both pattern fields so any future typo is obvious before it touches your vault.
+- If you were on an earlier version and already have `Journam*`/`Journpm*` folders, run **"Repair garbled date folders"** from the command palette. It moves every note stranded in one of those folders back to its correct `Journal/YYYY/MM-MMMM` location (links stay intact — it uses the same move as everything else), then deletes the now-empty broken folders. It only touches folders matching that exact corruption pattern, and asks for confirmation first.

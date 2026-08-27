@@ -5,6 +5,8 @@ import { organizeNote, organizeVault } from "./dateOrganizer";
 import { autoLinkContent, buildContentWordIndex, buildTitleIndex, computeRelatedNotes, upsertRelatedNotesSection } from "./autoLinker";
 import { renderReportMarkdown, runHousekeepingScan, writeReport } from "./housekeeping";
 import { ConfirmModal } from "./confirmModal";
+import { isSpecialPluginNote } from "./utils";
+import { findCorruptedFiles, repairCorruptedDateFolders } from "./repair";
 
 const MILLIS_PER_HOUR = 60 * 60 * 1000;
 const AUTO_ORGANIZE_DELAY_MS = 1500;
@@ -66,6 +68,12 @@ export default class VaultBrainPlugin extends Plugin {
 			id: "run-housekeeping-scan",
 			name: "Run vault housekeeping scan now",
 			callback: () => void this.runHousekeeping(true),
+		});
+
+		this.addCommand({
+			id: "repair-corrupted-date-folders",
+			name: "Repair garbled date folders (Journam*/Journpm*)",
+			callback: () => void this.repairCorruptedFolders(),
 		});
 
 		this.registerEvent(
@@ -156,6 +164,10 @@ export default class VaultBrainPlugin extends Plugin {
 
 	private async autoLinkSingle(file: TFile): Promise<void> {
 		if (!this.settings.autoLinking.enabled) return;
+		if (isSpecialPluginNote(this.app, file)) {
+			new Notice("Vault Brain: skipped — this is a Kanban board or Excalidraw drawing.");
+			return;
+		}
 		const index = buildTitleIndex(this.app, this.settings.autoLinking);
 		const original = await this.app.vault.read(file);
 		const { content, linksAdded } = autoLinkContent(original, file, index, this.settings.autoLinking);
@@ -176,6 +188,10 @@ export default class VaultBrainPlugin extends Plugin {
 
 	private async updateRelatedSingle(file: TFile): Promise<void> {
 		if (!this.settings.autoLinking.enabled) return;
+		if (isSpecialPluginNote(this.app, file)) {
+			new Notice("Vault Brain: skipped — this is a Kanban board or Excalidraw drawing.");
+			return;
+		}
 		const original = await this.app.vault.read(file);
 		const related = await computeRelatedNotes(this.app, file, this.settings.autoLinking);
 		const updated = upsertRelatedNotesSection(original, related, this.settings.autoLinking);
@@ -207,6 +223,10 @@ export default class VaultBrainPlugin extends Plugin {
 		let notesChanged = 0;
 		let done = 0;
 		for (const file of files) {
+			if (isSpecialPluginNote(this.app, file)) {
+				done += 1;
+				continue;
+			}
 			const original = await this.app.vault.read(file);
 			const { content, linksAdded } = autoLinkContent(original, file, index, this.settings.autoLinking);
 
@@ -251,5 +271,31 @@ export default class VaultBrainPlugin extends Plugin {
 			report.untaggedNotes.length;
 
 		new Notice(`Vault Brain housekeeping: ${totalIssues} issue(s) found. See ${reportFile.path}.`);
+	}
+
+	// ---------------------------------------------------------------- Repair
+
+	private async repairCorruptedFolders(): Promise<void> {
+		const affected = findCorruptedFiles(this.app);
+		if (affected.length === 0) {
+			new Notice("Vault Brain: no garbled Journam*/Journpm* folders found.");
+			return;
+		}
+
+		const confirmed = await ConfirmModal.ask(
+			this.app,
+			`Repair ${affected.length} note(s) in garbled date folders?`,
+			`Older versions of Vault Brain's default folder pattern could get misread by moment.js and scatter notes into folders like "Journam24" or "Journpm11" instead of a real Journal/YYYY/MM-MMMM path. This moves those ${affected.length} note(s) back to their correct date folder (links stay intact) and removes the empty broken folders afterward. Continue?`,
+			"Repair vault"
+		);
+		if (!confirmed) return;
+
+		const notice = new Notice("Vault Brain: repairing…", 0);
+		const result = await repairCorruptedDateFolders(this.app, this.settings.dateOrganization, (done, total) => {
+			notice.setMessage(`Vault Brain: repairing… ${done}/${total}`);
+		});
+		notice.hide();
+
+		new Notice(`Vault Brain: moved ${result.filesMoved}/${result.filesFound} note(s), removed ${result.foldersRemoved} empty broken folder(s).`);
 	}
 }

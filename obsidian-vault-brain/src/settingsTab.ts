@@ -1,5 +1,30 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, moment } from "obsidian";
 import type VaultBrainPlugin from "./main";
+
+/**
+ * Renders a live "resolves to" preview under a moment.js pattern field, using today's date. Catches
+ * the single most common mistake with these patterns: unbracketed literal words. In moment.js, only
+ * text wrapped in [brackets] is literal — every other letter is a format token, so a pattern like
+ * "Journal/YYYY" silently reads "Journal" as tokens (its "a" means am/pm, its "l" means localized
+ * date) instead of the folder name you meant. Wrap literal words in brackets, e.g. "[Journal]/YYYY".
+ */
+function renderPatternPreview(container: HTMLElement, getPattern: () => string): { refresh: () => void } {
+	const preview = container.createDiv({ cls: "setting-item-description" });
+	const refresh = () => {
+		const pattern = getPattern();
+		let resolved: string;
+		try {
+			resolved = moment().format(pattern);
+		} catch {
+			resolved = "(invalid pattern)";
+		}
+		preview.empty();
+		preview.createSpan({ text: "Resolves to: " });
+		preview.createEl("code", { text: resolved || "(empty)" });
+	};
+	refresh();
+	return { refresh };
+}
 
 function parseFolderList(raw: string): string[] {
 	return raw
@@ -72,15 +97,18 @@ export class VaultBrainSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(containerEl)
+		const folderPatternSetting = new Setting(containerEl)
 			.setName("Folder pattern")
-			.setDesc("Moment.js tokens, e.g. Journal/YYYY/MM-MMMM")
-			.addText((t) =>
-				t.setValue(settings.dateOrganization.folderPattern).onChange(async (v) => {
-					settings.dateOrganization.folderPattern = v || "Journal/YYYY/MM-MMMM";
-					await this.plugin.saveSettings();
-				})
-			);
+			.setDesc("Moment.js tokens. Wrap literal words in [brackets], e.g. [Journal]/YYYY/MM-MMMM — see the live preview below.");
+		let folderPreview: { refresh: () => void };
+		folderPatternSetting.addText((t) =>
+			t.setValue(settings.dateOrganization.folderPattern).onChange(async (v) => {
+				settings.dateOrganization.folderPattern = v || "[Journal]/YYYY/MM-MMMM";
+				await this.plugin.saveSettings();
+				folderPreview.refresh();
+			})
+		);
+		folderPreview = renderPatternPreview(containerEl, () => settings.dateOrganization.folderPattern);
 
 		new Setting(containerEl)
 			.setName("Rename file to date")
@@ -94,15 +122,18 @@ export class VaultBrainSettingTab extends PluginSettingTab {
 			);
 
 		if (settings.dateOrganization.renameFile) {
-			new Setting(containerEl)
+			const fileNamePatternSetting = new Setting(containerEl)
 				.setName("File name pattern")
-				.setDesc("Moment.js tokens, e.g. YYYY-MM-DD")
-				.addText((t) =>
-					t.setValue(settings.dateOrganization.fileNamePattern).onChange(async (v) => {
-						settings.dateOrganization.fileNamePattern = v || "YYYY-MM-DD";
-						await this.plugin.saveSettings();
-					})
-				);
+				.setDesc("Moment.js tokens. Wrap literal words in [brackets] — see the live preview below.");
+			let fileNamePreview: { refresh: () => void };
+			fileNamePatternSetting.addText((t) =>
+				t.setValue(settings.dateOrganization.fileNamePattern).onChange(async (v) => {
+					settings.dateOrganization.fileNamePattern = v || "YYYY-MM-DD";
+					await this.plugin.saveSettings();
+					fileNamePreview.refresh();
+				})
+			);
+			fileNamePreview = renderPatternPreview(containerEl, () => settings.dateOrganization.fileNamePattern);
 		}
 
 		new Setting(containerEl)

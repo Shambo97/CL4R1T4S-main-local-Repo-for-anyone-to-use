@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { AutoLinkingSettings } from "./settings";
-import { escapeRegExp, isPathExcluded, stripNonProseRegions } from "./utils";
+import { escapeRegExp, isPathExcluded, isSpecialPluginNote, stripNonProseRegions } from "./utils";
 
 interface TitleEntry {
 	file: TFile;
@@ -13,7 +13,7 @@ type ProtectedRange = [number, number];
 export function buildTitleIndex(app: App, settings: AutoLinkingSettings): Map<string, TitleEntry> {
 	const index = new Map<string, TitleEntry>();
 	for (const file of app.vault.getMarkdownFiles()) {
-		if (isPathExcluded(file.path, settings.excludeFolders)) continue;
+		if (isPathExcluded(file.path, settings.excludeFolders) || isSpecialPluginNote(app, file)) continue;
 		if (file.basename.length >= settings.minWordLength) {
 			addTitle(index, file.basename, file, settings);
 		}
@@ -193,7 +193,7 @@ function extractSignificantWords(content: string): Set<string> {
 export async function buildContentWordIndex(app: App, settings: AutoLinkingSettings): Promise<Map<string, Set<string>>> {
 	const index = new Map<string, Set<string>>();
 	for (const file of app.vault.getMarkdownFiles()) {
-		if (isPathExcluded(file.path, settings.excludeFolders)) continue;
+		if (isPathExcluded(file.path, settings.excludeFolders) || isSpecialPluginNote(app, file)) continue;
 		const raw = await app.vault.cachedRead(file);
 		index.set(file.path, extractSignificantWords(raw));
 	}
@@ -217,7 +217,7 @@ export async function computeRelatedNotes(
 
 	for (const candidate of app.vault.getMarkdownFiles()) {
 		if (candidate.path === file.path) continue;
-		if (isPathExcluded(candidate.path, settings.excludeFolders)) continue;
+		if (isPathExcluded(candidate.path, settings.excludeFolders) || isSpecialPluginNote(app, candidate)) continue;
 		if (fileConnections.has(candidate.path)) continue; // already directly linked, nothing new to surface
 
 		const candidateTags = getTags(app, candidate);

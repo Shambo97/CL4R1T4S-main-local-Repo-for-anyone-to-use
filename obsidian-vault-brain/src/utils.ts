@@ -1,5 +1,16 @@
 import { App, TFile, normalizePath } from "obsidian";
 
+/**
+ * True for notes owned by another plugin's special format (Kanban boards, Excalidraw drawings).
+ * These are still plain .md files to Obsidian's API, but moving them or splicing wikilinks/a
+ * Related Notes section into their body would corrupt the board/drawing that plugin renders from it.
+ */
+export function isSpecialPluginNote(app: App, file: TFile): boolean {
+	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
+	if (!frontmatter) return false;
+	return "kanban-plugin" in frontmatter || "excalidraw-plugin" in frontmatter;
+}
+
 /** Returns true if `path` sits inside (or equals) any of the given folder paths. */
 export function isPathExcluded(path: string, excludeFolders: string[]): boolean {
 	const normalized = normalizePath(path);

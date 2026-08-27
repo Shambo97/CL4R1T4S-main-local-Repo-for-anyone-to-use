@@ -1,0 +1,72 @@
+import { App, TFile, TFolder } from "obsidian";
+import { DateOrganizationSettings } from "./settings";
+import { organizeNote } from "./dateOrganizer";
+
+// Matches the exact corruption this plugin's old unescaped default pattern produced: moment.js
+// silently reads literal "Journal" as tokens ("a" = am/pm, "l" = localized date) whenever a folder
+// pattern contains un-bracketed literal text, scattering notes into "Journam4", "Journpm11", etc.
+const CORRUPTED_FOLDER_SEGMENT = /^Journ[ap]m\d{1,2}$/i;
+
+/** Finds every note currently stranded under a garbled date-folder segment. */
+export function findCorruptedFiles(app: App): TFile[] {
+	return app.vault.getMarkdownFiles().filter((file) => file.path.split("/").some((segment) => CORRUPTED_FOLDER_SEGMENT.test(segment)));
+}
+
+export interface RepairResult {
+	filesFound: number;
+	filesMoved: number;
+	foldersRemoved: number;
+	moves: { fromPath: string; toPath: string }[];
+}
+
+/**
+ * Moves every note stranded in a garbled Journam/Journpm-style folder back to its correct date-based
+ * location (per current settings), then removes whichever of those broken folders end up empty.
+ */
+export async function repairCorruptedDateFolders(
+	app: App,
+	settings: DateOrganizationSettings,
+	onProgress?: (done: number, total: number) => void
+): Promise<RepairResult> {
+	const affected = findCorruptedFiles(app);
+	const corruptedRoots = new Set<string>();
+	for (const file of affected) {
+		const bad = file.path.split("/").find((segment) => CORRUPTED_FOLDER_SEGMENT.test(segment));
+		if (bad) corruptedRoots.add(file.path.slice(0, file.path.indexOf(bad) + bad.length));
+	}
+
+	const moves: { fromPath: string; toPath: string }[] = [];
+	let done = 0;
+	for (const file of affected) {
+		const fromPath = file.path;
+		const result = await organizeNote(app, file, settings);
+		if (result.moved) moves.push({ fromPath, toPath: result.toPath });
+		done += 1;
+		onProgress?.(done, affected.length);
+	}
+
+	let foldersRemoved = 0;
+	for (const rootPath of corruptedRoots) {
+		foldersRemoved += await removeIfEmptyRecursive(app, rootPath);
+	}
+
+	return { filesFound: affected.length, filesMoved: moves.length, foldersRemoved, moves };
+}
+
+/** Deletes `path` (and, bottom-up, any now-empty ancestor folders it leaves behind) if it's empty. Returns count removed. */
+async function removeIfEmptyRecursive(app: App, path: string): Promise<number> {
+	const folder = app.vault.getAbstractFileByPath(path);
+	if (!(folder instanceof TFolder)) return 0;
+
+	let removed = 0;
+	for (const child of [...folder.children]) {
+		if (child instanceof TFolder) removed += await removeIfEmptyRecursive(app, child.path);
+	}
+
+	const stillEmpty = app.vault.getAbstractFileByPath(path);
+	if (stillEmpty instanceof TFolder && stillEmpty.children.length === 0) {
+		await app.vault.delete(stillEmpty);
+		removed += 1;
+	}
+	return removed;
+}
