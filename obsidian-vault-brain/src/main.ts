@@ -5,6 +5,7 @@ import { organizeNote, organizeVault } from "./dateOrganizer";
 import { autoLinkContent, buildTitleIndex, computeRelatedNotes, upsertRelatedNotesSection } from "./autoLinker";
 import { renderReportMarkdown, runHousekeepingScan, writeReport } from "./housekeeping";
 import { ConfirmModal } from "./confirmModal";
+import { BrainView, VIEW_TYPE_BRAIN } from "./brainView";
 
 const MILLIS_PER_HOUR = 60 * 60 * 1000;
 const AUTO_ORGANIZE_DELAY_MS = 1500;
@@ -16,6 +17,15 @@ export default class VaultBrainPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 		this.addSettingTab(new VaultBrainSettingTab(this.app, this));
+
+		this.registerView(VIEW_TYPE_BRAIN, (leaf) => new BrainView(leaf, this));
+		this.addRibbonIcon("brain", "Open Brain view", () => void this.activateBrainView());
+
+		this.addCommand({
+			id: "open-brain-view",
+			name: "Open Brain view",
+			callback: () => void this.activateBrainView(),
+		});
 
 		this.addCommand({
 			id: "organize-current-note-by-date",
@@ -92,6 +102,16 @@ export default class VaultBrainPlugin extends Plugin {
 		}
 	}
 
+	async activateBrainView(): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BRAIN)[0];
+		if (!leaf) {
+			leaf = workspace.getLeaf("tab");
+			await leaf.setViewState({ type: VIEW_TYPE_BRAIN, active: true });
+		}
+		workspace.revealLeaf(leaf);
+	}
+
 	async loadSettings(): Promise<void> {
 		const loaded = (await this.loadData()) as Partial<VaultBrainSettings> | null;
 		this.settings = {
@@ -101,6 +121,15 @@ export default class VaultBrainPlugin extends Plugin {
 				...DEFAULT_SETTINGS.housekeeping,
 				...loaded?.housekeeping,
 				checks: { ...DEFAULT_SETTINGS.housekeeping.checks, ...loaded?.housekeeping?.checks },
+			},
+			brainView: {
+				...DEFAULT_SETTINGS.brainView,
+				...loaded?.brainView,
+				enabledRegions: { ...DEFAULT_SETTINGS.brainView.enabledRegions, ...loaded?.brainView?.enabledRegions },
+				folderKindMap: { ...DEFAULT_SETTINGS.brainView.folderKindMap, ...loaded?.brainView?.folderKindMap },
+				tagKindMap: { ...DEFAULT_SETTINGS.brainView.tagKindMap, ...loaded?.brainView?.tagKindMap },
+				folderRegionMap: { ...DEFAULT_SETTINGS.brainView.folderRegionMap, ...loaded?.brainView?.folderRegionMap },
+				tagRegionMap: { ...DEFAULT_SETTINGS.brainView.tagRegionMap, ...loaded?.brainView?.tagRegionMap },
 			},
 		};
 	}

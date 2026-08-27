@@ -1,1 +1,122 @@
 /* Vault Brain currently relies on Obsidian's default Setting/Modal/Notice styling. */
+
+.vault-brain-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.vault-brain-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 0.75em;
+	flex-wrap: wrap;
+	padding: 0.5em 0.75em;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vault-brain-search {
+	flex: 0 1 220px;
+}
+
+.vault-brain-toggle {
+	display: flex;
+	align-items: center;
+	gap: 0.35em;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.vault-brain-region-toggles {
+	display: flex;
+	gap: 0.3em;
+	flex-wrap: wrap;
+}
+
+.vault-brain-chip {
+	font-size: var(--font-ui-smaller);
+	padding: 0.15em 0.6em;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	text-transform: capitalize;
+}
+
+.vault-brain-chip.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.vault-brain-recenter {
+	margin-left: auto;
+}
+
+.vault-brain-stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.vault-brain-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	cursor: grab;
+	touch-action: none;
+}
+
+.vault-brain-canvas:active {
+	cursor: grabbing;
+}
+
+.vault-brain-tooltip {
+	position: absolute;
+	z-index: 5;
+	pointer-events: none;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 0.35em 0.6em;
+	box-shadow: var(--shadow-s);
+	max-width: 260px;
+}
+
+.vault-brain-tooltip-title {
+	font-weight: 600;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.vault-brain-tooltip-meta {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	text-transform: capitalize;
+}
+
+.vault-brain-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6em 1em;
+	padding: 0.4em 0.75em;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.vault-brain-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 0.35em;
+}
+
+.vault-brain-legend-swatch {
+	width: 0.75em;
+	height: 0.75em;
+	border-radius: 50%;
+	display: inline-block;
+}

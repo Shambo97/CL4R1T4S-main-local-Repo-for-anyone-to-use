@@ -1,10 +1,11 @@
 # Vault Brain
 
-An [Obsidian](https://obsidian.md) plugin with three jobs:
+An [Obsidian](https://obsidian.md) plugin with four jobs:
 
 1. **Date organization** — files notes into date-based folders (e.g. `Journal/2026/08-August/2026-08-27.md`) automatically or on demand.
 2. **Auto-linking ("massive brain")** — scans notes for mentions of your other note titles/aliases and turns them into `[[wikilinks]]`, and can append an auto-updating **Related Notes** section based on shared tags and graph connections — even between notes that don't mention each other by name.
 3. **Housekeeping bot** — periodically scans the vault for orphan notes, broken links, empty notes, duplicate titles, and stale notes, and writes the results to a Markdown report note.
+4. **Brain view** — renders the vault as an interactive lobed brain map: each note is classified into a kind (person, project, concept, source, …) and a lobe, sized by how connected it is, and linked by your vault's real wikilinks.
 
 All file moves use Obsidian's `fileManager.renameFile`, so every `[[wikilink]]` pointing at a moved note is updated automatically — organizing your vault never breaks your links.
 
@@ -18,6 +19,7 @@ All available from the command palette (`Ctrl/Cmd+P`):
 - **Update related notes for current note**
 - **Auto-link entire vault (add links + related notes)** (asks for confirmation first)
 - **Run vault housekeeping scan now**
+- **Open Brain view** (also available from the ribbon icon)
 
 ## Settings
 
@@ -52,6 +54,25 @@ The Related Notes block is wrapped in HTML comment markers (`<!-- vault-brain:re
 | Stale note threshold | Days without a modification before a note counts as stale |
 | Report folder | Where `Vault Health Report YYYY-MM-DD.md` is written (overwritten if run again same day) |
 | Checks | Toggle orphan notes, broken links, empty notes, duplicate titles, stale notes, untagged notes individually |
+
+### Brain view
+
+Open it from the command palette or the brain icon in the ribbon. It draws a simplified side-profile brain silhouette split into six lobes, and drops each note into one:
+
+| Lobe | Holds |
+| --- | --- |
+| Frontal | Projects, decisions, work threads |
+| Parietal | Concepts, questions, and anything uncategorized |
+| Temporal | People |
+| Occipital | Sources |
+| Cerebellum | Tools, indexes |
+| Stem | Daily notes |
+
+A note's **kind** (and from it, its default lobe) comes from — in order — a `kind`/`type`/`category` frontmatter value, a matching tag, or its folder; a note can also set its lobe directly with a `brain_region` (or `region`/`lobe`) frontmatter property. Notes are sized by link count, and the most-connected notes are drawn as ringed "hubs." Lines are drawn for hub connections by default; toggle **Show all links** to see every link, or hover a note to see just its own.
+
+Drag to pan, scroll to zoom, click a note to open it (configurable to open in a new tab or just show a hover preview), right-click for an open menu, and use the search box to highlight notes by name. Region chips in the toolbar let you hide a lobe entirely. It's plain Canvas 2D — no WebGL, no continuous render loop — so it stays responsive without a GPU and costs nothing at rest; the settings tab has a **Node cap** for very large vaults and an opt-in **Idle pulse** for a subtle glow on hub notes.
+
+The folder/tag → kind/lobe rules, palette, hub threshold, and click behavior are all configurable in Settings → Vault Brain → Brain view.
 
 ## Installation
 

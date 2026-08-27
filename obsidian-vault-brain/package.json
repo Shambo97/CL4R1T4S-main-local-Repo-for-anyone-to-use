@@ -1,7 +1,7 @@
 {
 	"name": "vault-brain",
-	"version": "1.0.0",
-	"description": "Auto-organizes notes by date, auto-links your vault into a connected knowledge graph, and runs vault housekeeping scans.",
+	"version": "1.1.0",
+	"description": "Auto-organizes notes by date, auto-links your vault into a connected knowledge graph, runs vault housekeeping scans, and renders the vault as an interactive brain map.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
