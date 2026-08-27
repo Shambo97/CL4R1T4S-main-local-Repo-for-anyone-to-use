@@ -35,11 +35,14 @@ export interface RepairResult {
 	filesMoved: number;
 	foldersRemoved: number;
 	moves: { fromPath: string; toPath: string }[];
+	errors: { path: string; message: string }[];
 }
 
 /**
  * Moves every note stranded in a garbled Journam/Journpm-style folder back to its correct date-based
  * location (per current settings), then removes whichever of those broken folders end up empty.
+ * A single file failing to move (name collision, filesystem error, etc.) is recorded and skipped
+ * rather than aborting the rest of the batch.
  */
 export async function repairCorruptedDateFolders(
 	app: App,
@@ -54,11 +57,18 @@ export async function repairCorruptedDateFolders(
 	}
 
 	const moves: { fromPath: string; toPath: string }[] = [];
+	const errors: { path: string; message: string }[] = [];
 	let done = 0;
 	for (const file of affected) {
 		const fromPath = file.path;
-		const result = await organizeNote(app, file, settings);
-		if (result.moved) moves.push({ fromPath, toPath: result.toPath });
+		try {
+			const result = await organizeNote(app, file, settings);
+			if (result.moved) moves.push({ fromPath, toPath: result.toPath });
+		} catch (e) {
+			const message = e instanceof Error ? e.message : String(e);
+			errors.push({ path: fromPath, message });
+			console.error(`Vault Brain: failed to repair "${fromPath}":`, e);
+		}
 		done += 1;
 		onProgress?.(done, affected.length);
 	}
@@ -68,7 +78,7 @@ export async function repairCorruptedDateFolders(
 		foldersRemoved += await removeIfEmptyRecursive(app, rootPath);
 	}
 
-	return { filesFound: affected.length, filesMoved: moves.length, foldersRemoved, moves };
+	return { filesFound: affected.length, filesMoved: moves.length, foldersRemoved, moves, errors };
 }
 
 /** Deletes `path` (and, bottom-up, any now-empty ancestor folders it leaves behind) if it's empty. Returns count removed. */

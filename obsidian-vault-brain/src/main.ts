@@ -111,6 +111,25 @@ export default class VaultBrainPlugin extends Plugin {
 		if (this.settings.housekeeping.enabled && this.settings.housekeeping.runOnStartup) {
 			this.app.workspace.onLayoutReady(() => void this.runHousekeeping(false));
 		}
+
+		this.app.workspace.onLayoutReady(() => this.notifyIfCorruptedFoldersFound());
+	}
+
+	/** One-time-per-launch nudge so fixing the folder pattern doesn't silently leave old damage behind. */
+	private notifyIfCorruptedFoldersFound(): void {
+		if (folderPatternStillCorrupted(this.settings.dateOrganization)) return; // repair would refuse to run anyway
+		const count = findCorruptedFiles(this.app).length;
+		if (count === 0) return;
+
+		const notice = new Notice(
+			`Vault Brain: ${count} note(s) are still stuck in garbled Journam*/Journpm* folders. Click here to repair now.`,
+			0
+		);
+		notice.noticeEl.style.cursor = "pointer";
+		notice.noticeEl.addEventListener("click", () => {
+			notice.hide();
+			void this.repairCorruptedFolders();
+		});
 	}
 
 	onunload(): void {
@@ -333,6 +352,15 @@ export default class VaultBrainPlugin extends Plugin {
 			notice.setMessage(`Vault Brain: repairing… ${done}/${total}`);
 		});
 		notice.hide();
+
+		if (result.errors.length > 0) {
+			console.error("Vault Brain: repair errors", result.errors);
+			new Notice(
+				`Vault Brain: moved ${result.filesMoved}/${result.filesFound} note(s), but ${result.errors.length} failed (see console for details, Ctrl/Cmd+Shift+I). You can safely run repair again — it only touches files still in a garbled folder.`,
+				15000
+			);
+			return;
+		}
 
 		const stillBroken = findCorruptedFiles(this.app).length;
 		if (stillBroken > 0) {
