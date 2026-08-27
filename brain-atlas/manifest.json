@@ -1,0 +1,10 @@
+{
+	"id": "brain-atlas",
+	"name": "Brain Atlas",
+	"version": "0.3.0",
+	"minAppVersion": "1.5.0",
+	"description": "Renders your vault as an interactive lobed brain map: notes are classified into a kind and a brain region, sized by connections, and positioned nodes can be dragged and pinned in place.",
+	"author": "",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
