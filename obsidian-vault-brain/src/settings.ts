@@ -1,5 +1,5 @@
 export type DateSource = "frontmatter" | "created" | "filename";
-export type SimilarityMethod = "tags" | "links" | "both";
+export type SimilarityMethod = "tags" | "links" | "content" | "both";
 
 export interface DateOrganizationSettings {
 	enabled: boolean;

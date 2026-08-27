@@ -215,10 +215,17 @@ export class VaultBrainSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Similarity method")
-			.setDesc("How related notes are ranked: shared tags, shared graph connections, or both.")
+			.setDesc(
+				"How related notes are ranked. 'Shared keywords' works even when notes have no tags or links yet, so it's the one that matters most for a fresh vault."
+			)
 			.addDropdown((d) =>
 				d
-					.addOptions({ tags: "Shared tags", links: "Shared connections", both: "Both (average)" })
+					.addOptions({
+						tags: "Shared tags",
+						links: "Shared connections",
+						content: "Shared keywords",
+						both: "All signals (recommended)",
+					})
 					.setValue(settings.autoLinking.similarityMethod)
 					.onChange(async (v) => {
 						settings.autoLinking.similarityMethod = v as typeof settings.autoLinking.similarityMethod;

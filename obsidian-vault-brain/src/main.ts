@@ -2,7 +2,7 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { DEFAULT_SETTINGS, VaultBrainSettings } from "./settings";
 import { VaultBrainSettingTab } from "./settingsTab";
 import { organizeNote, organizeVault } from "./dateOrganizer";
-import { autoLinkContent, buildTitleIndex, computeRelatedNotes, upsertRelatedNotesSection } from "./autoLinker";
+import { autoLinkContent, buildContentWordIndex, buildTitleIndex, computeRelatedNotes, upsertRelatedNotesSection } from "./autoLinker";
 import { renderReportMarkdown, runHousekeepingScan, writeReport } from "./housekeeping";
 import { ConfirmModal } from "./confirmModal";
 
@@ -163,7 +163,7 @@ export default class VaultBrainPlugin extends Plugin {
 		let finalContent = content;
 		let relatedAdded = 0;
 		if (this.settings.autoLinking.addRelatedNotesSection) {
-			const related = computeRelatedNotes(this.app, file, this.settings.autoLinking);
+			const related = await computeRelatedNotes(this.app, file, this.settings.autoLinking);
 			finalContent = upsertRelatedNotesSection(finalContent, related, this.settings.autoLinking);
 			relatedAdded = related.length;
 		}
@@ -177,7 +177,7 @@ export default class VaultBrainPlugin extends Plugin {
 	private async updateRelatedSingle(file: TFile): Promise<void> {
 		if (!this.settings.autoLinking.enabled) return;
 		const original = await this.app.vault.read(file);
-		const related = computeRelatedNotes(this.app, file, this.settings.autoLinking);
+		const related = await computeRelatedNotes(this.app, file, this.settings.autoLinking);
 		const updated = upsertRelatedNotesSection(original, related, this.settings.autoLinking);
 		if (updated !== original) await this.app.vault.modify(file, updated);
 		new Notice(`Vault Brain: found ${related.length} related note(s).`);
@@ -198,6 +198,9 @@ export default class VaultBrainPlugin extends Plugin {
 
 		const files = this.app.vault.getMarkdownFiles();
 		const index = buildTitleIndex(this.app, this.settings.autoLinking);
+		const wordIndex = this.settings.autoLinking.addRelatedNotesSection
+			? await buildContentWordIndex(this.app, this.settings.autoLinking)
+			: undefined;
 		const notice = new Notice("Vault Brain: linking vault…", 0);
 
 		let totalLinks = 0;
@@ -209,7 +212,7 @@ export default class VaultBrainPlugin extends Plugin {
 
 			let finalContent = content;
 			if (this.settings.autoLinking.addRelatedNotesSection) {
-				const related = computeRelatedNotes(this.app, file, this.settings.autoLinking);
+				const related = await computeRelatedNotes(this.app, file, this.settings.autoLinking, wordIndex);
 				finalContent = upsertRelatedNotesSection(finalContent, related, this.settings.autoLinking);
 			}
 

@@ -39,7 +39,7 @@ All available from the command palette (`Ctrl/Cmd+P`):
 | Use aliases | Also match a note's frontmatter `aliases` |
 | Link first occurrence only | Link only the first mention of each note per note |
 | Add "Related Notes" section | Appends/refreshes a managed block of related notes |
-| Similarity method | Rank related notes by shared tags, shared graph connections, or both |
+| Similarity method | Rank related notes by shared tags, shared graph connections, shared keywords pulled from note content, or all three (default) — keywords are what let it find connections even in a vault with no tags or links yet |
 
 The Related Notes block is wrapped in HTML comment markers (`<!-- vault-brain:related-notes:start/end -->`) so re-running the command refreshes it in place instead of duplicating it.
 

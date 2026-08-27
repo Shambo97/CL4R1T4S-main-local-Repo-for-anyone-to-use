@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { AutoLinkingSettings } from "./settings";
-import { escapeRegExp, isPathExcluded } from "./utils";
+import { escapeRegExp, isPathExcluded, stripNonProseRegions } from "./utils";
 
 interface TitleEntry {
 	file: TFile;
@@ -161,10 +161,58 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 	return union === 0 ? 0 : intersection / union;
 }
 
-/** Ranks other notes by tag/graph similarity to `file`, surfacing connections that are not already linked. */
-export function computeRelatedNotes(app: App, file: TFile, settings: AutoLinkingSettings): RelatedNote[] {
+// Common English words filtered out of content-similarity so matches reflect real topic overlap.
+const STOPWORDS = new Set([
+	"about", "above", "after", "again", "against", "all", "also", "and", "any", "are", "aren't",
+	"because", "been", "before", "being", "below", "between", "both", "but", "cannot", "could",
+	"did", "does", "doing", "down", "during", "each", "for", "from", "further", "had", "has",
+	"have", "having", "here", "how", "into", "itself", "just", "like", "more", "most", "not",
+	"now", "off", "once", "only", "other", "over", "own", "same", "should", "some", "such", "than",
+	"that", "their", "them", "then", "there", "these", "they", "this", "those", "through", "today",
+	"under", "until", "very", "was", "were", "what", "when", "where", "which", "while", "will",
+	"with", "would", "your", "yours", "yourself",
+]);
+
+const CONTENT_MIN_WORD_LENGTH = 4;
+
+function extractSignificantWords(content: string): Set<string> {
+	const prose = stripNonProseRegions(content)
+		.replace(/\[\[[^\]]*\]\]/g, " ")
+		.replace(/\[[^\]]*\]\([^)]*\)/g, " ");
+	const words = new Set<string>();
+	const matches = prose.toLowerCase().match(/[a-z][a-z'-]*[a-z]|[a-z]/g) ?? [];
+	for (const word of matches) {
+		if (word.length < CONTENT_MIN_WORD_LENGTH) continue;
+		if (STOPWORDS.has(word)) continue;
+		words.add(word);
+	}
+	return words;
+}
+
+/** Reads and tokenizes every eligible note's content once, so a vault-wide related-notes pass doesn't re-read files. */
+export async function buildContentWordIndex(app: App, settings: AutoLinkingSettings): Promise<Map<string, Set<string>>> {
+	const index = new Map<string, Set<string>>();
+	for (const file of app.vault.getMarkdownFiles()) {
+		if (isPathExcluded(file.path, settings.excludeFolders)) continue;
+		const raw = await app.vault.cachedRead(file);
+		index.set(file.path, extractSignificantWords(raw));
+	}
+	return index;
+}
+
+/** Ranks other notes by similarity to `file`, surfacing connections that are not already linked. */
+export async function computeRelatedNotes(
+	app: App,
+	file: TFile,
+	settings: AutoLinkingSettings,
+	wordIndex?: Map<string, Set<string>>
+): Promise<RelatedNote[]> {
 	const fileTags = getTags(app, file);
 	const fileConnections = getConnectedPaths(app, file);
+	const needsContent = settings.similarityMethod === "content" || settings.similarityMethod === "both";
+	const fileWords = needsContent
+		? wordIndex?.get(file.path) ?? extractSignificantWords(await app.vault.cachedRead(file))
+		: new Set<string>();
 	const results: RelatedNote[] = [];
 
 	for (const candidate of app.vault.getMarkdownFiles()) {
@@ -175,11 +223,18 @@ export function computeRelatedNotes(app: App, file: TFile, settings: AutoLinking
 		const candidateTags = getTags(app, candidate);
 		const tagScore = jaccard(fileTags, candidateTags);
 		const linkScore = jaccard(fileConnections, getConnectedPaths(app, candidate));
+		const contentScore = needsContent
+			? jaccard(
+					fileWords,
+					wordIndex?.get(candidate.path) ?? extractSignificantWords(await app.vault.cachedRead(candidate))
+				)
+			: 0;
 
 		let score: number;
 		if (settings.similarityMethod === "tags") score = tagScore;
 		else if (settings.similarityMethod === "links") score = linkScore;
-		else score = (tagScore + linkScore) / 2;
+		else if (settings.similarityMethod === "content") score = contentScore;
+		else score = (tagScore + linkScore + contentScore) / 3;
 
 		if (score > 0) {
 			const sharedTags = Array.from(fileTags).filter((t) => candidateTags.has(t));
