@@ -1,0 +1,67 @@
+import { App, TFile, normalizePath } from "obsidian";
+
+/** Returns true if `path` sits inside (or equals) any of the given folder paths. */
+export function isPathExcluded(path: string, excludeFolders: string[]): boolean {
+	const normalized = normalizePath(path);
+	return excludeFolders.some((folder) => {
+		const f = normalizePath(folder);
+		if (!f) return false;
+		return normalized === f || normalized.startsWith(f + "/");
+	});
+}
+
+/** Creates every missing folder along `path`, mirroring `mkdir -p`. */
+export async function ensureFolderExists(app: App, path: string): Promise<void> {
+	const normalized = normalizePath(path);
+	if (!normalized || normalized === "/") return;
+	const parts = normalized.split("/").filter(Boolean);
+	let current = "";
+	for (const part of parts) {
+		current = current ? `${current}/${part}` : part;
+		const existing = app.vault.getAbstractFileByPath(current);
+		if (!existing) {
+			try {
+				await app.vault.createFolder(current);
+			} catch (e) {
+				// Folder may have been created concurrently; ignore if it now exists.
+				if (!app.vault.getAbstractFileByPath(current)) throw e;
+			}
+		}
+	}
+}
+
+/** Resolves a free, non-colliding path for a target base path (handles `file.md` -> `file 1.md`). */
+export function resolveUniquePath(app: App, desiredPath: string, ignore?: TFile): string {
+	const normalized = normalizePath(desiredPath);
+	const existing = app.vault.getAbstractFileByPath(normalized);
+	if (!existing || existing === ignore) return normalized;
+
+	const extIndex = normalized.lastIndexOf(".");
+	const base = extIndex >= 0 ? normalized.slice(0, extIndex) : normalized;
+	const ext = extIndex >= 0 ? normalized.slice(extIndex) : "";
+
+	let counter = 1;
+	let candidate = `${base} ${counter}${ext}`;
+	while (app.vault.getAbstractFileByPath(candidate) && app.vault.getAbstractFileByPath(candidate) !== ignore) {
+		counter += 1;
+		candidate = `${base} ${counter}${ext}`;
+	}
+	return candidate;
+}
+
+/** Strips YAML frontmatter, code fences and inline code from note content before text scanning. */
+export function stripNonProseRegions(content: string): string {
+	let result = content;
+	result = result.replace(/^---\n[\s\S]*?\n---\n?/, "");
+	result = result.replace(/```[\s\S]*?```/g, (match) => " ".repeat(match.length));
+	result = result.replace(/`[^`]*`/g, (match) => " ".repeat(match.length));
+	return result;
+}
+
+export function daysSince(timestampMs: number): number {
+	return (Date.now() - timestampMs) / (1000 * 60 * 60 * 24);
+}
+
+export function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

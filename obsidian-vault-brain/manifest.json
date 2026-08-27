@@ -1,0 +1,10 @@
+{
+	"id": "vault-brain",
+	"name": "Vault Brain",
+	"version": "1.0.0",
+	"minAppVersion": "1.4.0",
+	"description": "Auto-files notes into date-based folders, auto-links your vault into a connected 'second brain', and runs a housekeeping bot that scans for orphans, broken links, empties, duplicates and stale notes.",
+	"author": "Vault Brain",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
