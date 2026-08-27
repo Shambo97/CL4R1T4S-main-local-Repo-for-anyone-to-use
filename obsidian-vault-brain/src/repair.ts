@@ -1,4 +1,4 @@
-import { App, TFile, TFolder } from "obsidian";
+import { App, TFile, TFolder, moment } from "obsidian";
 import { DateOrganizationSettings } from "./settings";
 import { organizeNote } from "./dateOrganizer";
 
@@ -7,9 +7,27 @@ import { organizeNote } from "./dateOrganizer";
 // pattern contains un-bracketed literal text, scattering notes into "Journam4", "Journpm11", etc.
 const CORRUPTED_FOLDER_SEGMENT = /^Journ[ap]m\d{1,2}$/i;
 
+function containsCorruptedSegment(path: string): boolean {
+	return path.split("/").some((segment) => CORRUPTED_FOLDER_SEGMENT.test(segment));
+}
+
 /** Finds every note currently stranded under a garbled date-folder segment. */
 export function findCorruptedFiles(app: App): TFile[] {
-	return app.vault.getMarkdownFiles().filter((file) => file.path.split("/").some((segment) => CORRUPTED_FOLDER_SEGMENT.test(segment)));
+	return app.vault.getMarkdownFiles().filter((file) => containsCorruptedSegment(file.path));
+}
+
+/**
+ * True if the *current* folder pattern would itself still produce a garbled path today — i.e. repair
+ * would just move notes from one broken folder into another. Repair refuses to run while this is true.
+ */
+export function folderPatternStillCorrupted(settings: DateOrganizationSettings): boolean {
+	let resolved: string;
+	try {
+		resolved = moment().format(settings.folderPattern);
+	} catch {
+		return true;
+	}
+	return containsCorruptedSegment(resolved);
 }
 
 export interface RepairResult {

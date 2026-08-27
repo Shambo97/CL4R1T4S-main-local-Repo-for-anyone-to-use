@@ -6,7 +6,7 @@ import { autoLinkContent, buildContentWordIndex, buildTitleIndex, computeRelated
 import { renderReportMarkdown, runHousekeepingScan, writeReport } from "./housekeeping";
 import { ConfirmModal } from "./confirmModal";
 import { isSpecialPluginNote } from "./utils";
-import { findCorruptedFiles, repairCorruptedDateFolders } from "./repair";
+import { findCorruptedFiles, folderPatternStillCorrupted, repairCorruptedDateFolders } from "./repair";
 import { applyGraphColors, previewGraphGroups, type GraphGroupBy } from "./graphColor";
 import { createFolderStructure } from "./scaffold";
 
@@ -133,6 +133,14 @@ export default class VaultBrainPlugin extends Plugin {
 			graphColor: { ...DEFAULT_SETTINGS.graphColor, ...loaded?.graphColor },
 			folderStructure: { ...DEFAULT_SETTINGS.folderStructure, ...loaded?.folderStructure },
 		};
+
+		// Installs from before 1.0.1 have the unescaped "Journal/YYYY/MM-MMMM" baked into their saved
+		// data.json. The merge above lets saved values win over defaults, so the corrected default
+		// never reaches an existing install on its own — migrate it explicitly, once.
+		if (this.settings.dateOrganization.folderPattern === "Journal/YYYY/MM-MMMM") {
+			this.settings.dateOrganization.folderPattern = DEFAULT_SETTINGS.dateOrganization.folderPattern;
+			await this.saveSettings();
+		}
 	}
 
 	async saveSettings(): Promise<void> {
@@ -304,6 +312,14 @@ export default class VaultBrainPlugin extends Plugin {
 			return;
 		}
 
+		if (folderPatternStillCorrupted(this.settings.dateOrganization)) {
+			new Notice(
+				"Vault Brain: your current Folder pattern (Settings → Date organization) still resolves to a garbled path today — fix it first (check the live preview under the field), or repair would just move notes into another broken folder.",
+				12000
+			);
+			return;
+		}
+
 		const confirmed = await ConfirmModal.ask(
 			this.app,
 			`Repair ${affected.length} note(s) in garbled date folders?`,
@@ -317,6 +333,15 @@ export default class VaultBrainPlugin extends Plugin {
 			notice.setMessage(`Vault Brain: repairing… ${done}/${total}`);
 		});
 		notice.hide();
+
+		const stillBroken = findCorruptedFiles(this.app).length;
+		if (stillBroken > 0) {
+			new Notice(
+				`Vault Brain: moved ${result.filesMoved}/${result.filesFound} note(s), but ${stillBroken} are still in a garbled folder — the Folder pattern is likely still wrong. Check Settings → Date organization → Folder pattern's live preview.`,
+				12000
+			);
+			return;
+		}
 
 		new Notice(`Vault Brain: moved ${result.filesMoved}/${result.filesFound} note(s), removed ${result.foldersRemoved} empty broken folder(s).`);
 	}
