@@ -1,1 +1,4 @@
-/* Vault Brain currently relies on Obsidian's default Setting/Modal/Notice styling. */
+.vault-brain-folder-structure-textarea {
+	width: 100%;
+	font-family: var(--font-monospace);
+}

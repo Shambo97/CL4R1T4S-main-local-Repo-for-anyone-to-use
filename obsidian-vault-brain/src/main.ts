@@ -8,6 +8,7 @@ import { ConfirmModal } from "./confirmModal";
 import { isSpecialPluginNote } from "./utils";
 import { findCorruptedFiles, repairCorruptedDateFolders } from "./repair";
 import { applyGraphColors, previewGraphGroups, type GraphGroupBy } from "./graphColor";
+import { createFolderStructure } from "./scaffold";
 
 const MILLIS_PER_HOUR = 60 * 60 * 1000;
 const AUTO_ORGANIZE_DELAY_MS = 1500;
@@ -89,6 +90,12 @@ export default class VaultBrainPlugin extends Plugin {
 			callback: () => void this.autoColorGraph("tag"),
 		});
 
+		this.addCommand({
+			id: "create-folder-structure",
+			name: "Create recommended folder structure",
+			callback: () => void this.createFolderStructure(),
+		});
+
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (!(file instanceof TFile)) return;
@@ -124,6 +131,7 @@ export default class VaultBrainPlugin extends Plugin {
 				checks: { ...DEFAULT_SETTINGS.housekeeping.checks, ...loaded?.housekeeping?.checks },
 			},
 			graphColor: { ...DEFAULT_SETTINGS.graphColor, ...loaded?.graphColor },
+			folderStructure: { ...DEFAULT_SETTINGS.folderStructure, ...loaded?.folderStructure },
 		};
 	}
 
@@ -336,5 +344,21 @@ export default class VaultBrainPlugin extends Plugin {
 
 		const count = await applyGraphColors(this.app, groupBy, this.settings.graphColor);
 		new Notice(`Vault Brain: applied ${count} graph color group(s) by ${label}. Reopen the Graph view to see them.`);
+	}
+
+	// ---------------------------------------------------------------- Folder structure
+
+	private async createFolderStructure(): Promise<void> {
+		const paths = this.settings.folderStructure.paths;
+		if (paths.length === 0) {
+			new Notice("Vault Brain: no folders configured. Add some under Settings → Vault Brain → Folder structure.");
+			return;
+		}
+		const result = await createFolderStructure(this.app, paths);
+		new Notice(
+			result.created.length > 0
+				? `Vault Brain: created ${result.created.length} folder(s), ${result.alreadyExisted.length} already existed.`
+				: "Vault Brain: all configured folders already exist."
+		);
 	}
 }

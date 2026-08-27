@@ -20,6 +20,7 @@ All available from the command palette (`Ctrl/Cmd+P`):
 - **Run vault housekeeping scan now**
 - **Repair garbled date folders (Journam\*/Journpm\*)** — see [Known issue fixed in 1.0.1](#known-issue-fixed-in-101) below
 - **Auto-color graph by folder** / **Auto-color graph by tag** — generates Graph view color groups automatically
+- **Create recommended folder structure** — creates any missing folders from your configured list; never moves, renames, or deletes anything
 
 ## Settings
 
@@ -69,6 +70,10 @@ The Related Notes block is wrapped in HTML comment markers (`<!-- vault-brain:re
 This only targets Obsidian's built-in Graph view. It does not touch Brain Atlas's coloring — that plugin keeps its own private config (frontmatter/tag/folder → "kind"/"region" maps) that isn't part of Obsidian's documented format, so writing to it directly would risk corrupting settings Brain Atlas doesn't expect a different plugin to touch.
 
 **This replaces any color groups you've already set up manually in Graph view — it doesn't merge with them.** The command asks for confirmation and previews which groups it's about to create before doing anything.
+
+### Folder structure
+
+`Create recommended folder structure` reads a list of paths (one per line) from Settings → Vault Brain → Folder structure, and creates whichever of them don't exist yet. It's purely additive: it never touches an existing folder or moves any content, so it's safe to run repeatedly as you refine the list.
 
 ## Installation
 

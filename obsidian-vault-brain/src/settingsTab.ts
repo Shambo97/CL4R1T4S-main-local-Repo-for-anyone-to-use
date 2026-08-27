@@ -412,5 +412,24 @@ export class VaultBrainSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			);
+
+		// ---------------------------------------------------------------- Folder structure
+		containerEl.createEl("h3", { text: "Folder structure" });
+		containerEl.createEl("p", {
+			text: "One path per line. Run 'Create recommended folder structure' from the command palette to create any of these that don't exist yet. This only ever creates empty folders — it never moves, renames, or deletes anything.",
+			cls: "setting-item-description",
+		});
+
+		new Setting(containerEl).setName("Folders to create").addTextArea((t) => {
+			t.setValue(settings.folderStructure.paths.join("\n")).onChange(async (v) => {
+				settings.folderStructure.paths = v
+					.split("\n")
+					.map((line) => line.trim())
+					.filter(Boolean);
+				await this.plugin.saveSettings();
+			});
+			t.inputEl.rows = 8;
+			t.inputEl.addClass("vault-brain-folder-structure-textarea");
+		});
 	}
 }

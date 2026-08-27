@@ -53,11 +53,16 @@ export interface GraphColorSettings {
 	excludeFolders: string[];
 }
 
+export interface FolderStructureSettings {
+	paths: string[];
+}
+
 export interface VaultBrainSettings {
 	dateOrganization: DateOrganizationSettings;
 	autoLinking: AutoLinkingSettings;
 	housekeeping: HousekeepingSettings;
 	graphColor: GraphColorSettings;
+	folderStructure: FolderStructureSettings;
 }
 
 export const DEFAULT_SETTINGS: VaultBrainSettings = {
@@ -106,5 +111,8 @@ export const DEFAULT_SETTINGS: VaultBrainSettings = {
 		maxGroups: 12,
 		minGroupSize: 2,
 		excludeFolders: ["Housekeeping", "Templates"],
+	},
+	folderStructure: {
+		paths: ["Journal", "Templates", "Housekeeping"],
 	},
 };
