@@ -35,6 +35,10 @@ function hsl(h: number, s: number, l: number, a = 1): string {
 }
 
 export function kindColor(kind: BrainKind, palette: BrainPalette): string {
+	// "note" is the catch-all for anything matching no kind/region rule, which is often most of a
+	// vault. Render it as muted background tissue rather than a saturated color competing with the
+	// kinds someone actually chose to classify.
+	if (kind === "note") return hsl(220, 8, palette === "mono" ? 50 : 58, 0.55);
 	const hue = KIND_HUES[kind];
 	if (palette === "bio") return hsl(hue, 70, 58);
 	if (palette === "mono") return hsl(hue, 12, 62);

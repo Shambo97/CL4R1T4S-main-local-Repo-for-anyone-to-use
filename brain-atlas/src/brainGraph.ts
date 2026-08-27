@@ -77,6 +77,9 @@ function classifyKind(app: App, file: TFile, settings: BrainAtlasSettings): Brai
 	}
 	const folderMatch = matchByFolderPrefix(file.path, settings.folderKindMap);
 	if (folderMatch) return folderMatch;
+	// A note named like a date (however it's filed) reads as a daily note even with no matching
+	// folder/tag rule — mirrors the original Brain Atlas's "treat date files as daily" behavior.
+	if (/^\d{4}-\d{2}-\d{2}$/.test(file.basename)) return "dailyNote";
 	return "note";
 }
 
@@ -126,11 +129,20 @@ export function buildBrainGraph(app: App, settings: BrainAtlasSettings): BrainGr
 
 	let maxDegree = 0;
 	for (const d of degree.values()) if (d > maxDegree) maxDegree = d;
-	const hubThreshold = maxDegree * (settings.hubThresholdPercent / 100);
+
+	// Percentile-based, not "percent of the single most-linked note": in a typical vault the busiest
+	// note might have 40 links while most connected notes have 2-3, so "4% of max" (≈1.6) would make
+	// almost everything a hub. Take the top N% of *connected* notes by degree instead, with an absolute
+	// cap so a huge vault doesn't still end up with hundreds of "hubs" fighting for label space.
+	const connectedDegrees = Array.from(degree.values())
+		.filter((d) => d > 0)
+		.sort((a, b) => b - a);
+	const hubCount = connectedDegrees.length === 0 ? 0 : Math.max(1, Math.min(150, Math.round(connectedDegrees.length * (settings.hubThresholdPercent / 100))));
+	const hubDegreeFloor = hubCount === 0 ? Infinity : Math.max(2, connectedDegrees[hubCount - 1]);
 
 	for (const node of nodes) {
 		node.degree = degree.get(node.file.path) ?? 0;
-		node.isHub = node.degree > 0 && node.degree >= hubThreshold;
+		node.isHub = node.degree >= hubDegreeFloor;
 	}
 
 	return { nodes, edges, maxDegree };

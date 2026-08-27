@@ -11,7 +11,11 @@ export interface LayoutPoint {
  *  the brainstem hanging off the bottom-back, temporal along the lower-middle, parietal crowning the top. */
 const REGION_ANCHORS: Record<BrainRegion, { cx: number; cy: number; r: number }> = {
 	frontal: { cx: 0.26, cy: 0.38, r: 0.22 },
-	parietal: { cx: 0.55, cy: 0.2, r: 0.19 },
+	// Parietal doubles as the catch-all for anything that matches no kind/region rule (default kind
+	// "note"). In a real vault that bucket can dwarf every other lobe combined, so it gets a wide,
+	// brain-spanning anchor instead of a small circle — otherwise thousands of uncategorized notes
+	// crush into one dense blob instead of reading as background tissue across the whole map.
+	parietal: { cx: 0.5, cy: 0.45, r: 0.42 },
 	occipital: { cx: 0.83, cy: 0.34, r: 0.15 },
 	temporal: { cx: 0.44, cy: 0.68, r: 0.2 },
 	cerebellum: { cx: 0.78, cy: 0.7, r: 0.13 },

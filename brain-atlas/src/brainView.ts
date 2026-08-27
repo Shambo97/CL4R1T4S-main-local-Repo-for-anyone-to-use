@@ -56,6 +56,18 @@ function clamp01(v: number): number {
 	return Math.max(-0.05, Math.min(1.05, v));
 }
 
+/** Deterministic per-pair value in [-1, 1], used to bend an edge a consistent direction/amount across
+ *  redraws instead of it wobbling every frame. */
+function edgeBend(a: string, b: string): number {
+	const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+	let h = 2166136261;
+	for (let i = 0; i < key.length; i++) {
+		h ^= key.charCodeAt(i);
+		h = Math.imul(h, 16777619);
+	}
+	return ((h >>> 0) / 4294967295) * 2 - 1;
+}
+
 /** Renders the vault as an interactive lobed brain map: notes are classified into a kind and a lobe
  *  (via brainGraph.ts) and drawn as sized/colored nodes, connected by the vault's real resolved links.
  *  A note can be dragged to a custom spot and it stays pinned there (persisted in settings) across
@@ -471,7 +483,7 @@ export class BrainAtlasView extends ItemView {
 		ctx.clip(outlinePath);
 		const anchors = {
 			frontal: [0.26, 0.38, 0.28],
-			parietal: [0.55, 0.2, 0.25],
+			parietal: [0.5, 0.45, 0.42],
 			occipital: [0.83, 0.34, 0.2],
 			temporal: [0.44, 0.68, 0.26],
 			cerebellum: [0.78, 0.7, 0.18],
@@ -501,8 +513,10 @@ export class BrainAtlasView extends ItemView {
 			const pos = this.positions.get(node.file.path);
 			if (!pos) continue;
 			const screen = this.worldToScreen(pos.x * WORLD_W, pos.y * WORLD_H);
-			const base = 2.6 + Math.sqrt(node.degree) * 1.4;
-			const radius = Math.max(1.5, base * this.camera.zoom * 0.55);
+			// Uncategorized notes are drawn smaller so classified ones (usually the minority, and the
+			// ones someone actually cared enough to tag) visually dominate instead of drowning in them.
+			const base = node.kind === "note" ? 1.6 + Math.sqrt(node.degree) * 0.9 : 2.6 + Math.sqrt(node.degree) * 1.4;
+			const radius = Math.max(1.2, base * this.camera.zoom * 0.55);
 			out.push({ node, x: screen.x, y: screen.y, radius });
 		}
 		return out;
@@ -534,10 +548,23 @@ export class BrainAtlasView extends ItemView {
 			const b = screenByPath.get(edge.target);
 			if (!a || !b) continue;
 			const isHoverEdge = this.hovered && (edge.source === this.hovered.file.path || edge.target === this.hovered.file.path);
-			ctx.strokeStyle = isHoverEdge ? "rgba(255, 200, 120, 0.85)" : "rgba(150, 160, 190, 0.18)";
+			ctx.strokeStyle = isHoverEdge ? "rgba(255, 200, 120, 0.85)" : "rgba(150, 160, 190, 0.12)";
 			ctx.beginPath();
 			ctx.moveTo(a.x, a.y);
-			ctx.lineTo(b.x, b.y);
+			// A slight, deterministic bend per pair instead of a dead-straight line: at any real density
+			// straight edges between two clustered node masses read as a harsh drawn-together "funnel"
+			// rather than an organic web of connections.
+			const dx = b.x - a.x;
+			const dy = b.y - a.y;
+			const dist = Math.hypot(dx, dy);
+			if (dist > 1) {
+				const bend = edgeBend(edge.source, edge.target) * Math.min(24, dist * 0.18);
+				const mx = (a.x + b.x) / 2 + (-dy / dist) * bend;
+				const my = (a.y + b.y) / 2 + (dx / dist) * bend;
+				ctx.quadraticCurveTo(mx, my, b.x, b.y);
+			} else {
+				ctx.lineTo(b.x, b.y);
+			}
 			ctx.stroke();
 			drawn += 1;
 		}
@@ -547,6 +574,18 @@ export class BrainAtlasView extends ItemView {
 		const ctx = this.ctx;
 		const palette = this.plugin.settings.palette;
 		const hasSearch = this.searchTerm.length > 0;
+
+		// Cap how many labels can be on screen at once, independent of how many nodes qualify as
+		// "labelable": at real vault density even a correctly-sized hub set can still be a hundred-plus
+		// notes, and drawing every one of their labels is what turns the map into unreadable text soup.
+		const LABEL_BUDGET = 60;
+		const labelCandidates = this.plugin.settings.showLabelsForHubsOnly
+			? this.screenNodes.filter((sn) => sn.node.isHub)
+			: this.camera.zoom > 2.2
+				? this.screenNodes
+				: [];
+		labelCandidates.sort((a, b) => b.node.degree - a.node.degree);
+		const labelablePaths = new Set(labelCandidates.slice(0, LABEL_BUDGET).map((sn) => sn.node.file.path));
 
 		for (const sn of this.screenNodes) {
 			const matches = !hasSearch || sn.node.file.basename.toLowerCase().includes(this.searchTerm);
@@ -590,11 +629,7 @@ export class BrainAtlasView extends ItemView {
 				ctx.stroke();
 			}
 
-			const showLabel =
-				matches &&
-				(isHovered ||
-					(sn.node.isHub && this.plugin.settings.showLabelsForHubsOnly) ||
-					(!this.plugin.settings.showLabelsForHubsOnly && this.camera.zoom > 2.2));
+			const showLabel = matches && (isHovered || labelablePaths.has(sn.node.file.path));
 			if (showLabel) {
 				ctx.globalAlpha = 1;
 				ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
