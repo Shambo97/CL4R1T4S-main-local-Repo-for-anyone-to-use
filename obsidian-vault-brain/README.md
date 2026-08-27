@@ -19,6 +19,7 @@ All available from the command palette (`Ctrl/Cmd+P`):
 - **Auto-link entire vault (add links + related notes)** (asks for confirmation first)
 - **Run vault housekeeping scan now**
 - **Repair garbled date folders (Journam\*/Journpm\*)** — see [Known issue fixed in 1.0.1](#known-issue-fixed-in-101) below
+- **Auto-color graph by folder** / **Auto-color graph by tag** — generates Graph view color groups automatically
 
 ## Settings
 
@@ -53,6 +54,21 @@ The Related Notes block is wrapped in HTML comment markers (`<!-- vault-brain:re
 | Stale note threshold | Days without a modification before a note counts as stale |
 | Report folder | Where `Vault Health Report YYYY-MM-DD.md` is written (overwritten if run again same day) |
 | Checks | Toggle orphan notes, broken links, empty notes, duplicate titles, stale notes, untagged notes individually |
+
+### Graph auto-color
+
+`Auto-color graph by folder` and `Auto-color graph by tag` generate one Graph view color group per folder (or per tag), each an evenly-spaced hue so no two groups look alike, and write them straight into Obsidian's own Graph view config — the same `colorGroups` you'd otherwise set up by hand in Graph view's settings. Reopen (or open) the Graph view afterward to see it; Obsidian only reads this config when a graph pane opens.
+
+| Setting | Description |
+| --- | --- |
+| Folder grouping depth | How many path segments deep to group by (1 = top-level folder only) |
+| Maximum groups | Caps how many groups get created — Graph view colors get hard to distinguish past ~15 |
+| Minimum notes per group | Skips folders/tags with too few notes to be worth a color |
+| Excluded folders | Folders left out of grouping entirely |
+
+This only targets Obsidian's built-in Graph view. It does not touch Brain Atlas's coloring — that plugin keeps its own private config (frontmatter/tag/folder → "kind"/"region" maps) that isn't part of Obsidian's documented format, so writing to it directly would risk corrupting settings Brain Atlas doesn't expect a different plugin to touch.
+
+**This replaces any color groups you've already set up manually in Graph view — it doesn't merge with them.** The command asks for confirmation and previews which groups it's about to create before doing anything.
 
 ## Installation
 

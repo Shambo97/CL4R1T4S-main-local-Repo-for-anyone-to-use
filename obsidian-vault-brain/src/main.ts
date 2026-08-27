@@ -7,6 +7,7 @@ import { renderReportMarkdown, runHousekeepingScan, writeReport } from "./housek
 import { ConfirmModal } from "./confirmModal";
 import { isSpecialPluginNote } from "./utils";
 import { findCorruptedFiles, repairCorruptedDateFolders } from "./repair";
+import { applyGraphColors, previewGraphGroups, type GraphGroupBy } from "./graphColor";
 
 const MILLIS_PER_HOUR = 60 * 60 * 1000;
 const AUTO_ORGANIZE_DELAY_MS = 1500;
@@ -76,6 +77,18 @@ export default class VaultBrainPlugin extends Plugin {
 			callback: () => void this.repairCorruptedFolders(),
 		});
 
+		this.addCommand({
+			id: "auto-color-graph-by-folder",
+			name: "Auto-color graph by folder",
+			callback: () => void this.autoColorGraph("folder"),
+		});
+
+		this.addCommand({
+			id: "auto-color-graph-by-tag",
+			name: "Auto-color graph by tag",
+			callback: () => void this.autoColorGraph("tag"),
+		});
+
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (!(file instanceof TFile)) return;
@@ -110,6 +123,7 @@ export default class VaultBrainPlugin extends Plugin {
 				...loaded?.housekeeping,
 				checks: { ...DEFAULT_SETTINGS.housekeeping.checks, ...loaded?.housekeeping?.checks },
 			},
+			graphColor: { ...DEFAULT_SETTINGS.graphColor, ...loaded?.graphColor },
 		};
 	}
 
@@ -297,5 +311,30 @@ export default class VaultBrainPlugin extends Plugin {
 		notice.hide();
 
 		new Notice(`Vault Brain: moved ${result.filesMoved}/${result.filesFound} note(s), removed ${result.foldersRemoved} empty broken folder(s).`);
+	}
+
+	// ---------------------------------------------------------------- Graph auto-color
+
+	private async autoColorGraph(groupBy: GraphGroupBy): Promise<void> {
+		const groups = previewGraphGroups(this.app, groupBy, this.settings.graphColor);
+		if (groups.length === 0) {
+			new Notice(`Vault Brain: no ${groupBy}s with at least ${this.settings.graphColor.minGroupSize} note(s) found.`);
+			return;
+		}
+
+		const label = groupBy === "folder" ? "folder" : "tag";
+		const confirmed = await ConfirmModal.ask(
+			this.app,
+			`Auto-color graph by ${label}?`,
+			`This replaces the Graph view's current color groups with ${groups.length} auto-generated group(s), one per ${label} (${groups
+				.slice(0, 6)
+				.map((g) => g.name)
+				.join(", ")}${groups.length > 6 ? ", …" : ""}). Any color groups you've set up manually in Graph view settings will be overwritten. Open (or reopen) the Graph view afterward to see it. Continue?`,
+			"Apply colors"
+		);
+		if (!confirmed) return;
+
+		const count = await applyGraphColors(this.app, groupBy, this.settings.graphColor);
+		new Notice(`Vault Brain: applied ${count} graph color group(s) by ${label}. Reopen the Graph view to see them.`);
 	}
 }

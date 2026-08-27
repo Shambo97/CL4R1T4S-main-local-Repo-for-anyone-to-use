@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { AutoLinkingSettings } from "./settings";
-import { escapeRegExp, isPathExcluded, isSpecialPluginNote, stripNonProseRegions } from "./utils";
+import { escapeRegExp, getFileTags, isPathExcluded, isSpecialPluginNote, stripNonProseRegions } from "./utils";
 
 interface TitleEntry {
 	file: TFile;
@@ -133,16 +133,6 @@ export interface RelatedNote {
 	sharedTags: string[];
 }
 
-function getTags(app: App, file: TFile): Set<string> {
-	const cache = app.metadataCache.getFileCache(file);
-	const tags = new Set<string>();
-	for (const t of cache?.tags ?? []) tags.add(t.tag.replace(/^#/, "").toLowerCase());
-	const fmTags = cache?.frontmatter?.tags;
-	if (Array.isArray(fmTags)) fmTags.forEach((t) => typeof t === "string" && tags.add(t.replace(/^#/, "").toLowerCase()));
-	else if (typeof fmTags === "string") fmTags.split(",").forEach((t) => tags.add(t.trim().replace(/^#/, "").toLowerCase()));
-	return tags;
-}
-
 function getConnectedPaths(app: App, file: TFile): Set<string> {
 	const connected = new Set<string>();
 	const resolved = app.metadataCache.resolvedLinks;
@@ -207,7 +197,7 @@ export async function computeRelatedNotes(
 	settings: AutoLinkingSettings,
 	wordIndex?: Map<string, Set<string>>
 ): Promise<RelatedNote[]> {
-	const fileTags = getTags(app, file);
+	const fileTags = getFileTags(app, file);
 	const fileConnections = getConnectedPaths(app, file);
 	const needsContent = settings.similarityMethod === "content" || settings.similarityMethod === "both";
 	const fileWords = needsContent
@@ -220,7 +210,7 @@ export async function computeRelatedNotes(
 		if (isPathExcluded(candidate.path, settings.excludeFolders) || isSpecialPluginNote(app, candidate)) continue;
 		if (fileConnections.has(candidate.path)) continue; // already directly linked, nothing new to surface
 
-		const candidateTags = getTags(app, candidate);
+		const candidateTags = getFileTags(app, candidate);
 		const tagScore = jaccard(fileTags, candidateTags);
 		const linkScore = jaccard(fileConnections, getConnectedPaths(app, candidate));
 		const contentScore = needsContent

@@ -46,10 +46,18 @@ export interface HousekeepingSettings {
 	checks: HousekeepingChecks;
 }
 
+export interface GraphColorSettings {
+	folderDepth: number;
+	maxGroups: number;
+	minGroupSize: number;
+	excludeFolders: string[];
+}
+
 export interface VaultBrainSettings {
 	dateOrganization: DateOrganizationSettings;
 	autoLinking: AutoLinkingSettings;
 	housekeeping: HousekeepingSettings;
+	graphColor: GraphColorSettings;
 }
 
 export const DEFAULT_SETTINGS: VaultBrainSettings = {
@@ -92,5 +100,11 @@ export const DEFAULT_SETTINGS: VaultBrainSettings = {
 			staleNotes: true,
 			untaggedNotes: false,
 		},
+	},
+	graphColor: {
+		folderDepth: 1,
+		maxGroups: 12,
+		minGroupSize: 2,
+		excludeFolders: ["Housekeeping", "Templates"],
 	},
 };

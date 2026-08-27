@@ -353,5 +353,64 @@ export class VaultBrainSettingTab extends PluginSettingTab {
 					})
 				);
 		}
+
+		// ---------------------------------------------------------------- Graph auto-color
+		containerEl.createEl("h3", { text: "Graph auto-color" });
+		containerEl.createEl("p", {
+			text: "Run 'Auto-color graph by folder' or 'Auto-color graph by tag' from the command palette to generate Graph view color groups automatically. This overwrites any color groups you've set up manually in Graph view settings.",
+			cls: "setting-item-description",
+		});
+
+		new Setting(containerEl)
+			.setName("Folder grouping depth")
+			.setDesc("How many path segments deep to group by, e.g. 1 = top-level folder only.")
+			.addSlider((s) =>
+				s
+					.setLimits(1, 4, 1)
+					.setValue(settings.graphColor.folderDepth)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						settings.graphColor.folderDepth = v;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Maximum groups")
+			.setDesc("Graph view colors get hard to tell apart past ~15 groups — only the biggest groups are kept.")
+			.addSlider((s) =>
+				s
+					.setLimits(3, 24, 1)
+					.setValue(settings.graphColor.maxGroups)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						settings.graphColor.maxGroups = v;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Minimum notes per group")
+			.setDesc("Folders/tags with fewer notes than this are skipped, to avoid one-off noise groups.")
+			.addSlider((s) =>
+				s
+					.setLimits(1, 20, 1)
+					.setValue(settings.graphColor.minGroupSize)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						settings.graphColor.minGroupSize = v;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Excluded folders")
+			.setDesc("Comma-separated list of folders to leave out of grouping entirely.")
+			.addText((t) =>
+				t.setValue(settings.graphColor.excludeFolders.join(", ")).onChange(async (v) => {
+					settings.graphColor.excludeFolders = parseFolderList(v);
+					await this.plugin.saveSettings();
+				})
+			);
 	}
 }

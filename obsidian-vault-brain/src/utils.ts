@@ -76,3 +76,14 @@ export function daysSince(timestampMs: number): number {
 export function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+/** Reads every tag on a note — inline #tags and frontmatter `tags` (array or comma-separated string). */
+export function getFileTags(app: App, file: TFile): Set<string> {
+	const cache = app.metadataCache.getFileCache(file);
+	const tags = new Set<string>();
+	for (const t of cache?.tags ?? []) tags.add(t.tag.replace(/^#/, "").toLowerCase());
+	const fmTags = cache?.frontmatter?.tags;
+	if (Array.isArray(fmTags)) fmTags.forEach((t) => typeof t === "string" && tags.add(t.replace(/^#/, "").toLowerCase()));
+	else if (typeof fmTags === "string") fmTags.split(",").forEach((t) => tags.add(t.trim().replace(/^#/, "").toLowerCase()));
+	return tags;
+}
